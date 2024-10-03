@@ -1,0 +1,28 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "node8"
+  annotations:
+    humanitec.com/orgId: "htc-demo-41"
+    humanitec.com/appId: "node8"
+    quay.io/repository-slug: "quayadmin/node8"
+  tags:
+    - node
+    - humanitec
+spec:
+  type: service
+  owner: "user1"
+  lifecycle: experimental
+  providesApis:
+    - "node8"
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: "node8"
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: "user1"
+  definition:
+    $text: ./openapi.yaml

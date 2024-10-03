@@ -1,0 +1,78 @@
+name: Deploy Node8
+
+on:
+  push:
+    branches: main
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+env:
+
+  IMAGE: node8
+  CONTAINER_REGISTRY: ${{ vars.CONTAINER_REGISTRY }}
+
+  # Not on a cloud or unknown cloud provider 
+
+  HUMCTL_VERSION: '*'
+  APP_NAME: node8
+  APP_ENV: ocp-luiz
+
+
+jobs:
+  deploy:
+    name: Build & Notify Humanitec
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set Tag with SHA
+        run: echo "TAG=`echo $GITHUB_SHA | cut -c 1-7`" >> $GITHUB_ENV
+
+      - name: login to image registry
+        run: docker login $CONTAINER_REGISTRY -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PWD }}
+
+
+
+      - run: docker build --platform linux/amd64 . -t $CONTAINER_REGISTRY/$IMAGE:$TAG
+      - run: docker push $CONTAINER_REGISTRY/$IMAGE:$TAG
+
+      - uses: humanitec/setup-cli-action@v1
+        with:
+          version: ${{ env.HUMCTL_VERSION }}
+
+      - name: Inform Humanitec
+        run: |-
+          humctl create artefact-version \
+            --token ${{ secrets.HUMANITEC_TOKEN }} \
+            --org ${{ vars.HUMANITEC_ORG_ID }} \
+            -t container \
+            -n $CONTAINER_REGISTRY/$IMAGE \
+            --version $TAG \
+            --ref $GITHUB_REF \
+            --commit $GITHUB_SHA
+
+      - name: Setup Orchestrator app environment
+        continue-on-error: true
+        run: |
+          humctl api POST /orgs/${{ vars.HUMANITEC_ORG_ID }}/apps/${{ env.APP_NAME }}/envs \
+            --token ${{ secrets.HUMANITEC_TOKEN }} \
+            --org ${{ vars.HUMANITEC_ORG_ID }} \
+            --fail \
+            -d '{"id":"${{ env.APP_ENV }}","name":"${{ env.APP_ENV }}","type":"development"}'
+
+      - name: Deploy using Score
+        run: |
+          humctl score deploy \
+            --token ${{ secrets.HUMANITEC_TOKEN }} \
+            --org ${{ vars.HUMANITEC_ORG_ID }} \
+            --app ${{ env.APP_NAME }} \
+            --env ${{ env.APP_ENV }} \
+            -f score.yaml \
+            --extensions humanitec.score.yaml \
+            --workload-source-url "https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/score.yaml" \
+            --image $CONTAINER_REGISTRY/$IMAGE:$TAG \
+            --message "${{ github.event.head_commit.message }}"
+
