@@ -6,7 +6,8 @@ metadata:
     humanitec.com/orgId: "htc-demo-41"
     humanitec.com/appId: "node8"
     quay.io/repository-slug: "quayadmin/node8"
-    github.com/project-slug: "backstage/backstage"
+    backstage.io/source-location: "url:https://github.com/luizfaorg/node8"
+    github.com/project-slug: "luizfaorg/node8"
   tags:
     - node
     - humanitec
